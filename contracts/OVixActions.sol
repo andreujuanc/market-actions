@@ -44,6 +44,8 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
 
         for (uint256 i = 0; i < tokens.length; i++) {
             require(tokens[i].balanceOf(address(this)) == 0, "Contract cannot hold any balance after operation");
+            IEIP20 asset = IEIP20(tokens[i].underlying());
+            require(asset.balanceOf(address(this)) == 0, "Contract cannot hold any balance after operation");
             // TODO: Require underlying asset to be 0 as well just in case
         }
     }
@@ -54,6 +56,14 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         account = account_;
         _;
         account = account_; // get a gas-refund post-Istanbul
+    }
+
+    function _returnFundsAndFees() private {
+        for (uint256 i = 0; i < tokens.length; i++) {
+            tokens[i].transfer(account, tokens[i].balanceOf(address(this)));
+            IEIP20 asset = IEIP20(tokens[i].underlying());
+            asset.transfer(account, asset.balanceOf(address(this)));
+        }
     }
 
     function closePosition(address _from, address _to) public requireEmptyAfterOperation nonReentrant(msg.sender) {
@@ -68,7 +78,7 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
 
         POOL.flashLoanSimple(address(this), from.underlying(), fromBorrowed, abi.encode(from.underlying(), to.underlying()), 0);
 
-        // TODO: send back tokens
+        _returnFundsAndFees();
     }
 
     function executeOperation(
