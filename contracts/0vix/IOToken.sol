@@ -25,7 +25,7 @@ interface IOToken {
 
     function underlying() external view returns(address);
 
-    IComptroller public override comptroller;
+    IComptroller public comptroller;
 
 
 }
