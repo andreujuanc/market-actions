@@ -43,7 +43,7 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         _;
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            require(tokens[i].balanceOf(address(this)) == 0);
+            require(tokens[i].balanceOf(address(this)) == 0, "Contract cannot hold any balance after operation");
             // TODO: Require underlying asset to be 0 as well just in case
         }
     }
@@ -65,10 +65,19 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
 
         console.log("SENDER", account);
 
-        uint256 fromBorrowed = from.borrowBalanceCurrent(account);
+        console.log("Account TO pre", to.balanceOf(address(account)));
+        console.log("This    TO pre", to.balanceOf(address(this)));
+
+        require(to.transferFrom(account, address(this), 1), "Could not transfer to0Tokens to contract");
+        //toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
+
+        console.log("Account TO pre", to.balanceOf(address(account)));
+        console.log("This    TO pre", to.balanceOf(address(this)));
+
+        //uint256 fromBorrowed = from.borrowBalanceCurrent(account);
         //TokenBalance memory toBalance = getTokenBalances(to, account);
 
-        POOL.flashLoanSimple(address(this), from.underlying(), fromBorrowed, abi.encode(from.underlying(), to.underlying()), 0);
+        //POOL.flashLoanSimple(address(this), from.underlying(), fromBorrowed, abi.encode(from.underlying(), to.underlying()), 0);
         // get balances
 
         //uint256 ousdtBalance = ousdt.repayBorrowBehalf(sender, 100);
@@ -112,17 +121,16 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         uint256 fromPrice = getPrice(fromOToken);
         uint256 toPrice = getPrice(toOToken);
 
-        console.log('fromPrice', fromPrice);
-        console.log('toPrice', toPrice);
+        console.log("fromPrice", fromPrice);
+        console.log("toPrice", toPrice);
 
         uint256 priceFromTo = (fromPrice * 1e18) / toPrice;
-        console.log('priceFromTo', priceFromTo);
-        
-        uint256 totalFlashLoanAmountInToAsset = totalFlashLoanAmountInFromAsset * priceFromTo;
+        console.log("priceFromTo", priceFromTo);
+
+        uint256 totalFlashLoanAmountInToAsset = (totalFlashLoanAmountInFromAsset * priceFromTo) / 1e18;
         console.log("To redeem", totalFlashLoanAmountInToAsset);
-        require(toOToken.approve(address(this), totalFlashLoanAmountInToAsset), "Could not approve toOToken");
-        toOToken.transferFrom(account, address(this), totalFlashLoanAmountInToAsset);
-        toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
+        require(toOToken.transferFrom(account, address(this), toOToken.balanceOf(account)), "Could not transfer to oTokens to contract");
+        //toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
 
         console.log("TO", toAsset.balanceOf(address(this)));
         console.log("FROM", fromAsset.balanceOf(address(this)));
