@@ -134,7 +134,7 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         return balances;
     }
 
-    function getPrice(IOToken oToken) returns(uint) {
+    function getPrice(IOToken oToken) public returns(uint) {
         uint price = priceOracle.getUnderlyingPrice(oToken);
         require(price == 0, "Price not set");
         console.log('PRICE', oToken.name(), price);
