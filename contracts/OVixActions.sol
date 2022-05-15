@@ -122,19 +122,20 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         uint256 fromPrice = getPrice(fromOToken);
         uint256 toPrice = getPrice(toOToken);
 
-        console.log("totalFlashLoanAmountInFromAsset", amountInFromAsset); // 800989
-        console.log("From Price", fromPrice); //30223 653 00000 00000 00000
-        console.log("To Price", toPrice); // 0 998 76948 00000 00000
+        // console.log("totalFlashLoanAmountInFromAsset", amountInFromAsset); // 800989
+        // console.log("From Price", fromPrice); //30223 653 00000 00000 00000
+        // console.log("To Price", toPrice); // 0 998 76948 00000 00000
 
         // can be refactored to do one division less by just multiplying the delta decimals
         // TODO might be broken if the toAsset has less decimals
         //uint256 e18toFrom = 10**(18 - fromAsset.decimals());
         uint256 e18toTo = 10**(18 - toAsset.decimals());
+        //console.log("e18toTo", e18toTo);
 
         uint256 valueInUSD = ((amountInFromAsset * fromPrice) / (10**fromAsset.decimals())); //amount of decimals from + price = 8 + 18 - 8 = 18
-
+        //console.log('valueInUSD', valueInUSD);// USD with 18 decimals
         uint256 amountInToAsset = (valueInUSD * 1e18) / toPrice / e18toTo; // decimals 18 + 18 - 18 - 0= 18
-        console.log("totalFlashLoanAmountInToAsset", amountInToAsset);
+        //console.log("totalFlashLoanAmountInToAsset", amountInToAsset);
 
         return amountInToAsset;
     }
