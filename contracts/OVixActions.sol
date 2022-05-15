@@ -59,6 +59,8 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
     }
 
     function _returnFundsAndFees() private {
+        require(account != address(0), "Invalid account");
+        
         for (uint256 i = 0; i < tokens.length; i++) {
             tokens[i].transfer(account, tokens[i].balanceOf(address(this)));
             IEIP20 asset = IEIP20(tokens[i].underlying());
@@ -172,16 +174,6 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         // console.log("This    post   ", token.balanceOf(address(this)));
         return true;
     }
-
-    // function getTokenBalances(IOToken token) public returns (TokenBalance memory) {
-    //     TokenBalance memory balances;
-
-    //     balances.oTokenBalance = token.balanceOf(account);
-    //     balances.borrowed = ;
-    //     balances.underlying = token.balanceOfUnderlying(account);
-
-    //     return balances;
-    // }
 
     function getPrice(IOToken oToken) public view returns (uint256) {
         //uint price = priceOracle.getUnderlyingPrice(oToken);
