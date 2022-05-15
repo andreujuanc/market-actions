@@ -17,7 +17,8 @@ describe("OVixActions", function () {
     const OVixActions = await ethers.getContractFactory("OVixActions", owner);
 
     const POOL_ADDRESS_PROVIDER_POLYGON_MAINNET = '0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb'
-    const oVixActions = await OVixActions.deploy(POOL_ADDRESS_PROVIDER_POLYGON_MAINNET); // p
+    const QUICKSWAP_ROUTER_POLYGON_MAINNET = '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff'
+    const oVixActions = await OVixActions.deploy(POOL_ADDRESS_PROVIDER_POLYGON_MAINNET, QUICKSWAP_ROUTER_POLYGON_MAINNET);
     await oVixActions.deployed();
 
     // BTC > USDT

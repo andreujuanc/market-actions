@@ -1,3 +1,7 @@
+//SPDX-License-Identifier: MIT
+pragma solidity 0.8.10;
+
+import "./IComptroller.sol";
 
 interface IOToken {
     function name() external view returns (string memory);
@@ -20,6 +24,8 @@ interface IOToken {
     function liquidateBorrow(address borrower, uint repayAmount, IOToken oTokenCollateral) external;
 
     function underlying() external view returns(address);
+
+    IComptroller public override comptroller;
 
 
 }

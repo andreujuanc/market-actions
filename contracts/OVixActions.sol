@@ -3,10 +3,14 @@ pragma solidity 0.8.10;
 
 import "hardhat/console.sol";
 import "./aave/IFlashLoanSimpleReceiver.sol";
-import "./IOToken.sol";
+import "./0vix/IOToken.sol";
+import "./0vix/PriceOracle.sol";
 import "./IEIP20.sol";
+import "./core/Swap.sol";
 
-contract OVixActions is IFlashLoanSimpleReceiver {
+contract OVixActions is Swap, IFlashLoanSimpleReceiver {
+    // OVIX 
+    PriceOracle private priceOracle;
     IOToken private obtc = IOToken(0x3B9128Ddd834cE06A60B0eC31CCfB11582d8ee18);
     IOToken private ousdt = IOToken(0x1372c34acC14F1E8644C72Dad82E3a21C211729f);
     IOToken private ousdc = IOToken(0xEBb865Bf286e6eA8aBf5ac97e1b56A76530F3fBe);
@@ -23,11 +27,12 @@ contract OVixActions is IFlashLoanSimpleReceiver {
     IPoolAddressesProvider public immutable override ADDRESSES_PROVIDER;
     IPool public immutable override POOL;
 
-    constructor(IPoolAddressesProvider provider) {
+    constructor(IPoolAddressesProvider provider, address uniswapRouter) Swap(uniswapRouter) {
         for (uint256 i = 0; i < tokens.length; i++) {
             oTokens[address(tokens[i])] = tokens[i];
             oTokensFromUnder[tokens[i].underlying()] = tokens[i];
         }
+        priceOracle = tokens[0].comptroller().oracle();
 
         // AAVE
         ADDRESSES_PROVIDER = provider;
@@ -43,21 +48,15 @@ contract OVixActions is IFlashLoanSimpleReceiver {
         }
     }
 
-    bool internal _notEntered = true;
-    modifier nonReentrant() {
-        require(_notEntered, "re-entered");
-        _notEntered = false;
+    address internal account = address(0);
+    modifier nonReentrant(address account_) {
+        require(account == (address(0)), "re-entered");
+        account = account_;
         _;
-        _notEntered = true; // get a gas-refund post-Istanbul
+        account = account_; // get a gas-refund post-Istanbul
     }
 
-    function closePosition(address _from, address _to)
-        public
-        requireEmptyAfterOperation
-        nonReentrant
-    {
-        address account = msg.sender;
-
+    function closePosition(address _from, address _to) public requireEmptyAfterOperation nonReentrant(msg.sender) {
         IOToken from = oTokens[_from];
         require(address(from) != address(0), "Invalid OVix token: from");
 
@@ -69,13 +68,7 @@ contract OVixActions is IFlashLoanSimpleReceiver {
         TokenBalance memory fromBalance = getTokenBalances(from, account);
         TokenBalance memory toBalance = getTokenBalances(to, account);
 
-        POOL.flashLoanSimple(
-            address(this),
-            from.underlying(),
-            fromBalance.borrowed,
-            new bytes(0),
-            0
-        );
+        POOL.flashLoanSimple(address(this), from.underlying(), fromBalance.borrowed, abi.encode(_from, _to), 0);
         // get balances
 
         //uint256 ousdtBalance = ousdt.repayBorrowBehalf(sender, 100);
@@ -88,26 +81,50 @@ contract OVixActions is IFlashLoanSimpleReceiver {
         address _initiator,
         bytes calldata _params
     ) external returns (bool) {
-        IEIP20 asset = IEIP20(_asset);
-        IOToken oToken = oTokensFromUnder[_asset];
+        (address from, address to) = abi.decode(_params, (address, address));
 
-        uint256 localBalance = asset.balanceOf(address(this));
+        require(account != address(0), "Not initialized");
+        require(from != address(0), "Invalid OVix token: from");
+        require(to != address(0), "Invalid OVix token: to");
+        require(msg.sender == address(POOL), "Only the flashloan pool can execute operations");
+
+        require(_asset == from || _asset == to, "Invalid asset or callparams");
+
+        IEIP20 fromAsset = IEIP20(from);
+        IOToken fromOToken = oTokensFromUnder[from];
+
+        IEIP20 toAsset = IEIP20(to);
+        IOToken toOToken = oTokensFromUnder[to];
+
+        uint256 localBalance = fromAsset.balanceOf(address(this));
         console.log("Got flash loan", _amount, _premium, _initiator);
         console.log("Local Balance", localBalance);
         require(localBalance >= _amount, "Bad flashloan, bad bad bad");
 
-        // swap the tokens
+        // PAY BACK BORROWED ASSETS
+        console.log("paying back", fromAsset.name(), _amount);
+        fromAsset.approve(address(fromOToken), _amount);
+        fromOToken.repayBorrowBehalf(account, _amount);
+        console.log("PAID!");
+        require(fromOToken.borrowBalanceCurrent(account) == 0, "Did not paid loan back");
 
-        // payback
-        uint256 total = _amount + _premium;
-        asset.transfer(_initiator, total);
+        // We need to get part of the supply to pay the flashloan
+        uint256 totalFlashLoanAmountInFromAsset = _amount + _premium;
+        uint256 fromPrice = getPrice(fromOToken);
+        uint256 toPrice = getPrice(toOToken);
+
+        uint256 priceFromTo = from / to;
+        uint256 totalFlashLoanAmountInToAsset = totalFlashLoanAmountInFromAsset * priceFromTo;
+        toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
+        swap(address(toAsset), address(fromAsset), totalFlashLoanAmountInToAsset, totalFlashLoanAmountInFromAsset, address(this));
+
+        // Pay back the flashloan
+
+        fromAsset.transfer(_initiator, totalFlashLoanAmountInFromAsset);
         return true;
     }
 
-    function getTokenBalances(IOToken token, address account)
-        public
-        returns (TokenBalance memory)
-    {
+    function getTokenBalances(IOToken token, address account) public returns (TokenBalance memory) {
         TokenBalance memory balances;
 
         balances.oTokenBalance = token.balanceOf(account);
@@ -115,6 +132,13 @@ contract OVixActions is IFlashLoanSimpleReceiver {
         balances.underlying = token.balanceOfUnderlying(account);
 
         return balances;
+    }
+
+    function getPrice(IOToken oToken) returns(uint) {
+        uint price = priceOracle.getUnderlyingPrice(oToken);
+        require(price == 0, "Price not set");
+        console.log('PRICE', oToken.name(), price);
+        return price;
     }
 
     struct TokenBalance {
