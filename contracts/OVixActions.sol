@@ -111,6 +111,9 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         uint256 fromPrice = getPrice(fromOToken);
         uint256 toPrice = getPrice(toOToken);
 
+        console.log('fromPrice', fromPrice);
+        console.log('toPrice', toPrice);
+
         uint256 priceFromTo = fromPrice / toPrice;
         uint256 totalFlashLoanAmountInToAsset = totalFlashLoanAmountInFromAsset * priceFromTo;
         toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
