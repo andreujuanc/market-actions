@@ -63,24 +63,12 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         IOToken to = oTokens[_to];
         require(address(to) != address(0), "Invalid OVix token: to");
 
-        console.log("SENDER", account);
-
-        console.log("Account TO pre", to.balanceOf(address(account)));
-        console.log("This    TO pre", to.balanceOf(address(this)));
-
-        require(to.transferFrom(account, address(this), 1), "Could not transfer to0Tokens to contract");
-        //toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
-
-        console.log("Account TO pre", to.balanceOf(address(account)));
-        console.log("This    TO pre", to.balanceOf(address(this)));
-
-        //uint256 fromBorrowed = from.borrowBalanceCurrent(account);
+        uint256 fromBorrowed = from.borrowBalanceCurrent(account);
         //TokenBalance memory toBalance = getTokenBalances(to, account);
 
-        //POOL.flashLoanSimple(address(this), from.underlying(), fromBorrowed, abi.encode(from.underlying(), to.underlying()), 0);
-        // get balances
+        POOL.flashLoanSimple(address(this), from.underlying(), fromBorrowed, abi.encode(from.underlying(), to.underlying()), 0);
 
-        //uint256 ousdtBalance = ousdt.repayBorrowBehalf(sender, 100);
+        // TODO: send back tokens
     }
 
     function executeOperation(
@@ -104,43 +92,72 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         IOToken toOToken = oTokensFromUnder[to];
 
         uint256 localBalance = fromAsset.balanceOf(address(this));
-        console.log("Got flash loan", _amount, _premium, _initiator);
-        console.log("Local Balance", localBalance);
         require(localBalance >= _amount, "Bad flashloan, bad bad bad");
 
         // PAY BACK BORROWED ASSETS
-        console.log("paying back", fromAsset.name(), _amount);
         require(fromAsset.approve(address(fromOToken), _amount), "Could not approve fromOToken");
         fromOToken.repayBorrowBehalf(account, _amount);
-        console.log("PAID!");
         require(fromOToken.borrowBalanceCurrent(account) == 0, "Did not paid loan back");
 
-        // We need to get part of the supply to pay the flashloan
-        // Easiest is to transfer to this contract to redeem
         uint256 totalFlashLoanAmountInFromAsset = _amount + _premium;
-        uint256 fromPrice = getPrice(fromOToken);
-        uint256 toPrice = getPrice(toOToken);
+        uint256 amoutnToRedeem = _calculateRedeption(fromAsset, fromOToken, toAsset, toOToken, totalFlashLoanAmountInFromAsset);
 
-        console.log("fromPrice", fromPrice);
-        console.log("toPrice", toPrice);
+        //_redeem(toOToken, toOToken.balanceOf(account) / 100);
 
-        uint256 priceFromTo = (fromPrice * 1e18) / toPrice;
-        console.log("priceFromTo", priceFromTo);
-
-        uint256 totalFlashLoanAmountInToAsset = (totalFlashLoanAmountInFromAsset * priceFromTo) / 1e18;
-        console.log("To redeem", totalFlashLoanAmountInToAsset);
-        require(toOToken.transferFrom(account, address(this), toOToken.balanceOf(account)), "Could not transfer to oTokens to contract");
-        //toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
-
-        console.log("TO", toAsset.balanceOf(address(this)));
-        console.log("FROM", fromAsset.balanceOf(address(this)));
-
-        require(toAsset.balanceOf(address(this)) >= totalFlashLoanAmountInToAsset, "Did not redeem");
         //swap(address(toAsset), address(fromAsset), totalFlashLoanAmountInToAsset, totalFlashLoanAmountInFromAsset, address(this));
 
         // Pay back the flashloan
 
         //fromAsset.transfer(_initiator, totalFlashLoanAmountInFromAsset);
+        return true;
+    }
+
+    function _calculateRedeption(
+        IEIP20 fromAsset,
+        IOToken fromOToken,
+        IEIP20 toAsset,
+        IOToken toOToken,
+        uint256 amountInFromAsset
+    ) public returns (uint256) {
+        uint256 fromPrice = getPrice(fromOToken);
+        uint256 toPrice = getPrice(toOToken);
+
+        console.log("totalFlashLoanAmountInFromAsset", amountInFromAsset); // 800989
+        console.log("From Price", fromPrice); //30223 653 00000 00000 00000
+        console.log("To Price", toPrice); // 0 998 76948 00000 00000
+
+        // can be refactored to do one division less by just multiplying the delta decimals
+        // TODO might be broken if the toAsset has less decimals
+        //uint256 e18toFrom = 10**(18 - fromAsset.decimals());
+        uint256 e18toTo = 10**(18 - toAsset.decimals());
+
+        uint256 valueInUSD = ((amountInFromAsset * fromPrice) / (10**fromAsset.decimals())); //amount of decimals from + price = 8 + 18 - 8 = 18
+
+        uint256 amountInToAsset = (valueInUSD * 1e18) / toPrice / e18toTo; // decimals 18 + 18 - 18 - 0= 18
+        console.log("totalFlashLoanAmountInToAsset", amountInToAsset);
+
+        return amountInToAsset;
+    }
+
+    function _redeem(IOToken token, uint256 oTokensToRedeem) private returns (bool) {
+        // console.log("oToken Decimals", token.decimals());
+        // console.log("Exchange rate", token.exchangeRateStored());
+        // console.log("Underlying", token.balanceOfUnderlying(account));
+        // console.log("Account pre ", token.balanceOf(address(account)));
+        // console.log("This    pre ", token.balanceOf(address(this)));
+
+        uint256 toRedeem = (oTokensToRedeem * token.exchangeRateStored()) / 1e18;
+        // console.log("Transfer amount", oTokensToRedeem);
+        require(token.transferFrom(account, address(this), oTokensToRedeem), "Could not transfer to0Tokens contract");
+
+        // console.log("Account mid ", token.balanceOf(address(account)));
+        // console.log("This    mid ", token.balanceOf(address(this)));
+
+        //console.log("ToRedeem", toRedeem);
+        token.redeemUnderlying(toRedeem);
+
+        // console.log("Account post", token.balanceOf(address(account)));
+        // console.log("This    post", token.balanceOf(address(this)));
         return true;
     }
 
@@ -163,7 +180,7 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         require(updatedAt > 0, "Round not complete");
 
         if (decimalDelta > 0) {
-            return uint256(answer) * (10**decimalDelta); // 99938371 * 1_00000_00000 = 999_38371_00000_00000
+            return uint256(answer) * (10**decimalDelta); // 99938371 * 1_00000_00000 = 00999_38371_00000_00000 => 0.999
         } else {
             return uint256(answer);
         }
