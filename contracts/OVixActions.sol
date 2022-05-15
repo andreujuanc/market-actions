@@ -101,12 +101,13 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
 
         // PAY BACK BORROWED ASSETS
         console.log("paying back", fromAsset.name(), _amount);
-        fromAsset.approve(address(fromOToken), _amount);
+        require(fromAsset.approve(address(fromOToken), _amount), "Could not approve fromOToken");
         fromOToken.repayBorrowBehalf(account, _amount);
         console.log("PAID!");
         require(fromOToken.borrowBalanceCurrent(account) == 0, "Did not paid loan back");
 
         // We need to get part of the supply to pay the flashloan
+        // Easiest is to transfer to this contract to redeem
         uint256 totalFlashLoanAmountInFromAsset = _amount + _premium;
         uint256 fromPrice = getPrice(fromOToken);
         uint256 toPrice = getPrice(toOToken);
@@ -114,8 +115,13 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         console.log('fromPrice', fromPrice);
         console.log('toPrice', toPrice);
 
-        uint256 priceFromTo = fromPrice / toPrice;
+        uint256 priceFromTo = (fromPrice * 1e18) / toPrice;
+        console.log('priceFromTo', priceFromTo);
+        
         uint256 totalFlashLoanAmountInToAsset = totalFlashLoanAmountInFromAsset * priceFromTo;
+        console.log("To redeem", totalFlashLoanAmountInToAsset);
+        require(toOToken.approve(address(this), totalFlashLoanAmountInToAsset), "Could not approve toOToken");
+        toOToken.transferFrom(account, address(this), totalFlashLoanAmountInToAsset);
         toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
 
         console.log("TO", toAsset.balanceOf(address(this)));

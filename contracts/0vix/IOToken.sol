@@ -2,8 +2,9 @@
 pragma solidity 0.8.10;
 
 import "./IComptroller.sol";
+import "../IEIP20.sol";
 
-interface IOToken {
+interface IOToken is IEIP20 {
     function name() external view returns (string memory);
     function symbol() external view returns (string memory);
     function decimals() external view returns (uint8);
