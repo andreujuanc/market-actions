@@ -9,7 +9,7 @@ import "./IEIP20.sol";
 import "./core/Swap.sol";
 
 contract OVixActions is Swap, IFlashLoanSimpleReceiver {
-    // OVIX 
+    // OVIX
     PriceOracle private priceOracle;
     IOToken private obtc = IOToken(0x3B9128Ddd834cE06A60B0eC31CCfB11582d8ee18);
     IOToken private ousdt = IOToken(0x1372c34acC14F1E8644C72Dad82E3a21C211729f);
@@ -65,10 +65,10 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
 
         console.log("SENDER", account);
 
-        TokenBalance memory fromBalance = getTokenBalances(from, account);
-        TokenBalance memory toBalance = getTokenBalances(to, account);
+        uint256 fromBorrowed = from.borrowBalanceCurrent(account);
+        //TokenBalance memory toBalance = getTokenBalances(to, account);
 
-        POOL.flashLoanSimple(address(this), from.underlying(), fromBalance.borrowed, abi.encode(_from, _to), 0);
+        POOL.flashLoanSimple(address(this), from.underlying(), fromBorrowed, abi.encode(from.underlying(), to.underlying()), 0);
         // get balances
 
         //uint256 ousdtBalance = ousdt.repayBorrowBehalf(sender, 100);
@@ -82,12 +82,10 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         bytes calldata _params
     ) external returns (bool) {
         (address from, address to) = abi.decode(_params, (address, address));
-
         require(account != address(0), "Not initialized");
         require(from != address(0), "Invalid OVix token: from");
         require(to != address(0), "Invalid OVix token: to");
         require(msg.sender == address(POOL), "Only the flashloan pool can execute operations");
-
         require(_asset == from || _asset == to, "Invalid asset or callparams");
 
         IEIP20 fromAsset = IEIP20(from);
@@ -116,29 +114,42 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         uint256 priceFromTo = fromPrice / toPrice;
         uint256 totalFlashLoanAmountInToAsset = totalFlashLoanAmountInFromAsset * priceFromTo;
         toOToken.redeemUnderlying(totalFlashLoanAmountInToAsset);
-        swap(address(toAsset), address(fromAsset), totalFlashLoanAmountInToAsset, totalFlashLoanAmountInFromAsset, address(this));
+
+        console.log("TO", toAsset.balanceOf(address(this)));
+        console.log("FROM", fromAsset.balanceOf(address(this)));
+
+        require(toAsset.balanceOf(address(this)) >= totalFlashLoanAmountInToAsset, "Did not redeem");
+        //swap(address(toAsset), address(fromAsset), totalFlashLoanAmountInToAsset, totalFlashLoanAmountInFromAsset, address(this));
 
         // Pay back the flashloan
 
-        fromAsset.transfer(_initiator, totalFlashLoanAmountInFromAsset);
+        //fromAsset.transfer(_initiator, totalFlashLoanAmountInFromAsset);
         return true;
     }
 
-    function getTokenBalances(IOToken token, address account) public returns (TokenBalance memory) {
-        TokenBalance memory balances;
+    // function getTokenBalances(IOToken token) public returns (TokenBalance memory) {
+    //     TokenBalance memory balances;
 
-        balances.oTokenBalance = token.balanceOf(account);
-        balances.borrowed = token.borrowBalanceCurrent(account);
-        balances.underlying = token.balanceOfUnderlying(account);
+    //     balances.oTokenBalance = token.balanceOf(account);
+    //     balances.borrowed = ;
+    //     balances.underlying = token.balanceOfUnderlying(account);
 
-        return balances;
-    }
+    //     return balances;
+    // }
 
-    function getPrice(IOToken oToken) public returns(uint) {
-        uint price = priceOracle.getUnderlyingPrice(oToken);
-        require(price == 0, "Price not set");
-        console.log('PRICE', oToken.name(), price);
-        return price;
+    function getPrice(IOToken oToken) public view returns (uint256) {
+        //uint price = priceOracle.getUnderlyingPrice(oToken);
+        IAggregatorV2V3 feed = priceOracle.getFeed(address(oToken));
+        uint256 decimalDelta = 18 - feed.decimals(); // 18-8 = 10
+
+        (, int256 answer, , uint256 updatedAt, ) = feed.latestRoundData(); // answer = 99938371
+        require(updatedAt > 0, "Round not complete");
+
+        if (decimalDelta > 0) {
+            return uint256(answer) * (10**decimalDelta); // 99938371 * 1_00000_00000 = 999_38371_00000_00000
+        } else {
+            return uint256(answer);
+        }
     }
 
     struct TokenBalance {
