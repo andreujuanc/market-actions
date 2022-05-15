@@ -103,8 +103,8 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         uint256 amountToRedeemInAsset = _calculateRedeption(fromAsset, fromOToken, toAsset, toOToken, totalFlashLoanAmountInFromAsset);
 
         _redeem(toOToken, amountToRedeemInAsset);
-        
-        //swap(address(toAsset), address(fromAsset), totalFlashLoanAmountInToAsset, totalFlashLoanAmountInFromAsset, address(this));
+
+        _swap(address(toAsset), address(fromAsset), toAsset.balanceOf(address(this)), totalFlashLoanAmountInFromAsset, address(this));
 
         // Pay back the flashloan
 

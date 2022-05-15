@@ -12,13 +12,13 @@ abstract contract Swap {
         router = IUniswapV2Router01(router_);
     }
 
-    function swap(
+    function _swap(
         address fromToken,
         address toToken,
         uint256 fromAmount,
         uint256 toAmount,
         address receipient
-    ) public {
+    ) internal {
         require(IEIP20(fromToken).approve(address(router), fromAmount), "approve failed.");
 
         address[] memory path = new address[](2);
