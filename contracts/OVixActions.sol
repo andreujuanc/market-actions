@@ -100,9 +100,9 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         require(fromOToken.borrowBalanceCurrent(account) == 0, "Did not paid loan back");
 
         uint256 totalFlashLoanAmountInFromAsset = _amount + _premium;
-        uint256 amoutnToRedeem = _calculateRedeption(fromAsset, fromOToken, toAsset, toOToken, totalFlashLoanAmountInFromAsset);
+        uint256 amountToRedeemInAsset = _calculateRedeption(fromAsset, fromOToken, toAsset, toOToken, totalFlashLoanAmountInFromAsset);
 
-        //_redeem(toOToken, toOToken.balanceOf(account) / 100);
+        _redeem(toOToken, amountToRedeemInAsset);
 
         //swap(address(toAsset), address(fromAsset), totalFlashLoanAmountInToAsset, totalFlashLoanAmountInFromAsset, address(this));
 
@@ -140,14 +140,14 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         return amountInToAsset;
     }
 
-    function _redeem(IOToken token, uint256 oTokensToRedeem) private returns (bool) {
+    function _redeem(IOToken token, uint256 amountToRedeemInAsset) private returns (bool) {
         // console.log("oToken Decimals", token.decimals());
         // console.log("Exchange rate", token.exchangeRateStored());
         // console.log("Underlying", token.balanceOfUnderlying(account));
         // console.log("Account pre ", token.balanceOf(address(account)));
         // console.log("This    pre ", token.balanceOf(address(this)));
 
-        uint256 toRedeem = (oTokensToRedeem * token.exchangeRateStored()) / 1e18;
+        uint256 oTokensToRedeem = (amountToRedeemInAsset ** 1e18 / token.exchangeRateStored()) ;
         // console.log("Transfer amount", oTokensToRedeem);
         require(token.transferFrom(account, address(this), oTokensToRedeem), "Could not transfer to0Tokens contract");
 
@@ -155,7 +155,7 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         // console.log("This    mid ", token.balanceOf(address(this)));
 
         //console.log("ToRedeem", toRedeem);
-        token.redeemUnderlying(toRedeem);
+        token.redeemUnderlying(amountToRedeemInAsset);
 
         // console.log("Account post", token.balanceOf(address(account)));
         // console.log("This    post", token.balanceOf(address(this)));
