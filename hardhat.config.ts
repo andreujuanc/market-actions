@@ -23,11 +23,12 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 // Go to https://hardhat.org/config/ to learn more
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.4",
+  solidity: "0.8.10",
   networks: {
     hardhat: {
       forking: {
-        url: `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
+        url: `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`,
+        blockNumber: 28348640
       },
       accounts: process.env.PRIVATE_KEY !== undefined ? [{ privateKey: process.env.PRIVATE_KEY, balance: '10000000000000000000' }] : [],
     },

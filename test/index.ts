@@ -15,10 +15,13 @@ describe("OVixActions", function () {
     const owner = await ethers.getSigner(IMPERSONATING)
     console.log("OWNER", owner.address)
     const OVixActions = await ethers.getContractFactory("OVixActions", owner);
-    const oVixActions = await OVixActions.deploy();
+
+    const POOL_ADDRESS_PROVIDER_POLYGON_MAINNET = '0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb'
+    const oVixActions = await OVixActions.deploy(POOL_ADDRESS_PROVIDER_POLYGON_MAINNET); // p
     await oVixActions.deployed();
 
-    await oVixActions.closePositions();
+    // BTC > USDT
+    await oVixActions.closePosition('0x3B9128Ddd834cE06A60B0eC31CCfB11582d8ee18', '0x1372c34acC14F1E8644C72Dad82E3a21C211729f');
 
   });
 });
