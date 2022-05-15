@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
+import "hardhat/console.sol";
 
 import "../uniswap/IUniswapV2Router01.sol";
 import "../uniswap/IUniswapV2Pair.sol";
@@ -21,11 +22,29 @@ abstract contract Swap {
     ) internal {
         require(IEIP20(fromToken).approve(address(router), fromAmount), "approve failed.");
 
-        address[] memory path = new address[](2);
-        path[0] = fromToken;
-        path[1] = toToken;
+        // address[] memory path = new address[](2);
+        // path[0] = fromToken;
+        // path[1] = ;
+        // path[2] = toToken;
 
-        uint deadline = block.timestamp + 100;
+        address WETH = router.WETH();
+
+        address[] memory path;
+        if (fromToken == WETH || toToken == WETH) {
+            path = new address[](2);
+            path[0] = fromToken;
+            path[1] = toToken;
+        } else {
+            path = new address[](3);
+            path[0] = fromToken;
+            path[1] = WETH;
+            path[2] = toToken;
+        }
+
+        uint256 deadline = block.timestamp + 100;
+
+        console.log("IN", fromAmount);
+        console.log("OUT", toAmount);
 
         router.swapExactTokensForTokens(
             fromAmount,

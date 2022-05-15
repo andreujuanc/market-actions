@@ -100,10 +100,11 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         require(fromOToken.borrowBalanceCurrent(account) == 0, "Did not paid loan back");
 
         uint256 totalFlashLoanAmountInFromAsset = _amount + _premium;
-        uint256 amountToRedeemInAsset = _calculateRedeption(fromAsset, fromOToken, toAsset, toOToken, totalFlashLoanAmountInFromAsset);
+        uint256 amountToRedeemInAsset = _calculateRedeption(fromAsset, fromOToken, toAsset, toOToken, totalFlashLoanAmountInFromAsset, 2000000);
 
         _redeem(toOToken, amountToRedeemInAsset);
-
+        // console.log("IN", toAsset.balanceOf(address(this)));
+        // console.log('OUT', totalFlashLoanAmountInFromAsset);
         _swap(address(toAsset), address(fromAsset), toAsset.balanceOf(address(this)), totalFlashLoanAmountInFromAsset, address(this));
 
         // Pay back the flashloan
@@ -117,7 +118,8 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         IOToken fromOToken,
         IEIP20 toAsset,
         IOToken toOToken,
-        uint256 amountInFromAsset
+        uint256 amountInFromAsset,
+        uint32 extraRedemption5Decimals // to cover fees, slippage, etc
     ) private view returns (uint256) {
         uint256 fromPrice = getPrice(fromOToken);
         uint256 toPrice = getPrice(toOToken);
@@ -131,8 +133,9 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         //uint256 e18toFrom = 10**(18 - fromAsset.decimals());
         uint256 e18toTo = 10**(18 - toAsset.decimals());
         //console.log("e18toTo", e18toTo);
-
-        uint256 valueInUSD = ((amountInFromAsset * fromPrice) / (10**fromAsset.decimals())); //amount of decimals from + price = 8 + 18 - 8 = 18
+        uint256 cost = ((amountInFromAsset * extraRedemption5Decimals) / 1e7);
+        uint256 base = amountInFromAsset + cost;
+        uint256 valueInUSD = ((base * fromPrice) / (10**fromAsset.decimals())); //amount of decimals from + price = 8 + 18 - 8 = 18
         //console.log('valueInUSD', valueInUSD);// USD with 18 decimals
         uint256 amountInToAsset = (valueInUSD * 1e18) / toPrice / e18toTo; // decimals 18 + 18 - 18 - 0= 18
         //console.log("totalFlashLoanAmountInToAsset", amountInToAsset);
