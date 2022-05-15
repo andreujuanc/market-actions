@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 import "../uniswap/IUniswapV2Router01.sol";
 import "../uniswap/IUniswapV2Pair.sol";
@@ -42,9 +42,6 @@ abstract contract Swap {
         }
 
         uint256 deadline = block.timestamp + 100;
-
-        console.log("IN", fromAmount);
-        console.log("OUT", toAmount);
 
         router.swapExactTokensForTokens(
             fromAmount,

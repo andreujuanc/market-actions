@@ -100,13 +100,17 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
         require(fromOToken.borrowBalanceCurrent(account) == 0, "Did not paid loan back");
 
         uint256 totalFlashLoanAmountInFromAsset = _amount + _premium;
-        uint256 amountToRedeemInAsset = _calculateRedeption(fromAsset, fromOToken, toAsset, toOToken, totalFlashLoanAmountInFromAsset, 2000000);
+        uint256 amountToRedeemInAsset = _calculateRedeption(fromAsset, fromOToken, toAsset, toOToken, totalFlashLoanAmountInFromAsset, 500000);
 
         _redeem(toOToken, amountToRedeemInAsset);
         // console.log("IN", toAsset.balanceOf(address(this)));
         // console.log('OUT', totalFlashLoanAmountInFromAsset);
-        _swap(address(toAsset), address(fromAsset), toAsset.balanceOf(address(this)), totalFlashLoanAmountInFromAsset, address(this));
 
+        console.log("TO", toAsset.balanceOf(address(this)));
+        console.log("FROM", fromAsset.balanceOf(address(this)));
+        _swap(address(toAsset), address(fromAsset), toAsset.balanceOf(address(this)), totalFlashLoanAmountInFromAsset, address(this));
+        console.log("TO", toAsset.balanceOf(address(this)));
+        console.log("FROM", fromAsset.balanceOf(address(this)));
         // Pay back the flashloan
 
         //fromAsset.transfer(_initiator, totalFlashLoanAmountInFromAsset);
