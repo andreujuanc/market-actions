@@ -141,24 +141,25 @@ contract OVixActions is Swap, IFlashLoanSimpleReceiver {
     }
 
     function _redeem(IOToken token, uint256 amountToRedeemInAsset) private returns (bool) {
-        // console.log("oToken Decimals", token.decimals());
-        // console.log("Exchange rate", token.exchangeRateStored());
-        // console.log("Underlying", token.balanceOfUnderlying(account));
-        // console.log("Account pre ", token.balanceOf(address(account)));
-        // console.log("This    pre ", token.balanceOf(address(this)));
+        console.log("oToken Decimals", token.decimals());
+        console.log("Exchange rate", token.exchangeRateStored());
+        console.log("Underlying", token.balanceOfUnderlying(account));
 
-        uint256 oTokensToRedeem = (amountToRedeemInAsset ** 1e18 / token.exchangeRateStored()) ;
-        // console.log("Transfer amount", oTokensToRedeem);
-        require(token.transferFrom(account, address(this), oTokensToRedeem), "Could not transfer to0Tokens contract");
+        console.log('amountToRedeemInAsset', amountToRedeemInAsset);
+        console.log("Account pre ", token.balanceOf(address(account)));
+        console.log("This    pre ", token.balanceOf(address(this)));
 
-        // console.log("Account mid ", token.balanceOf(address(account)));
-        // console.log("This    mid ", token.balanceOf(address(this)));
+        uint256 oTokensToTransfer = ((amountToRedeemInAsset * 1e18) / token.exchangeRateStored());
+        console.log("Transfer amount", oTokensToTransfer);
+        require(token.transferFrom(account, address(this), oTokensToTransfer), "Could not transfer to0Tokens contract");
 
-        //console.log("ToRedeem", toRedeem);
+        console.log("Account mid ", token.balanceOf(address(account)));
+        console.log("This    mid ", token.balanceOf(address(this)));
+
         token.redeemUnderlying(amountToRedeemInAsset);
 
-        // console.log("Account post", token.balanceOf(address(account)));
-        // console.log("This    post", token.balanceOf(address(this)));
+        console.log("Account post", token.balanceOf(address(account)));
+        console.log("This    post", token.balanceOf(address(this)));
         return true;
     }
 
