@@ -10,13 +10,23 @@ contract OVixActions {
     IOToken private ousdc = IOToken(0xEBb865Bf286e6eA8aBf5ac97e1b56A76530F3fBe);
     IOToken private omatic = IOToken(0xE554E874c9c60E45F1Debd479389C76230ae25A8);
 
+    IOToken[4]  tokens = [obtc, ousdt, ousdc, omatic];
+
+    modifier requireEmptyAfterOperation(){
+        _;
+
+        for (uint i = 0; i < tokens.length; i++) {
+            
+        }
+    }
+
     function closePositions() public  {
         address sender = msg.sender;
 
         console.log("SENDER", sender);
         
         // create array of tokens
-        IOToken[4] memory tokens = [obtc, ousdt, ousdc, omatic];
+      
         
         for (uint i = 0; i < tokens.length; i++) {
             IOToken token = tokens[i];
